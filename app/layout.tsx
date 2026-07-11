@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/demo-auth";
 import { SavedProvider } from "@/lib/saved/local-saved";
 import { FloatingAssistant, SiteFooter, SiteHeader } from "@/components/layout/SiteChrome";
+import { Playfair_Display, Inter } from "next/font/google";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const playfair = Playfair_Display({
   subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-playfair",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -24,8 +25,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-cream-50 text-teal-900 antialiased`}>
+    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
+      <body className={`font-sans min-h-screen bg-teal-50 text-teal-900 antialiased`}>
         <AuthProvider>
           <SavedProvider>
             <SiteHeader />

@@ -14,37 +14,47 @@ export type AssistantResult = {
 export async function askOpenHandsAssistant(
   messages: AssistantMessage[],
 ): Promise<AssistantResult> {
-  const apiKey = process.env.GRADIENT_AI_API_KEY;
-  const endpoint = process.env.GRADIENT_AI_ENDPOINT;
   const latest = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
 
-  if (apiKey && endpoint) {
-    try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are OpenHands Assistant. Help people find nearby essentials with dignity. Never promise availability. Be concise and practical.",
-            },
-            ...messages,
-          ],
-        }),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { reply?: string; choices?: Array<{ message?: { content?: string } }> };
-        const reply = data.reply ?? data.choices?.[0]?.message?.content;
-        if (reply) return { reply, source: "gradient-ai", suggestedQuery: latest };
-      }
-    } catch {
-      // fall through to mock
+  try {
+    const res = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are OpenHands Assistant. Help people find nearby essentials with dignity. Never promise availability. Be concise and practical.",
+          },
+          ...messages,
+        ],
+      }),
+    });
+    
+    if (res.ok) {
+      const reply = await res.text();
+      
+      // Attempt to extract categories from the text to help the UI filter
+      const lower = reply.toLowerCase();
+      const categories: string[] = [];
+      if (/(food|meal|eat)/.test(lower)) categories.push("food");
+      if (/(shelter|bed|sleep)/.test(lower)) categories.push("shelter");
+      if (/(clothing|coat|jacket)/.test(lower)) categories.push("clothing");
+      if (/(hygiene|shower)/.test(lower)) categories.push("hygiene");
+      if (/(medical|doctor)/.test(lower)) categories.push("medical");
+
+      return { 
+        reply, 
+        source: "gradient-ai", // Keep source string the same so UI doesn't break
+        suggestedQuery: latest,
+        categories: categories.length > 0 ? categories : undefined
+      };
     }
+  } catch {
+    // fall through to mock
   }
 
   return mockAssistant(latest);

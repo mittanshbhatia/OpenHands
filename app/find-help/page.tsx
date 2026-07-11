@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { ResourceCard } from "@/components/resources/ResourceCard";
 import { MapLegend, ResourceMap } from "@/components/maps/ResourceMap";
 import { CATEGORY_LABELS, DEMO_CENTER } from "@/lib/demo/seed";
@@ -8,37 +9,58 @@ import { searchResources } from "@/lib/matching/resources";
 import type { ResourceCategory } from "@/types";
 
 export default function FindHelpPage() {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<ResourceCategory | "all">("all");
+  return (
+    <Suspense>
+      <FindHelpInner />
+    </Suspense>
+  );
+}
+
+function FindHelpInner() {
+  const searchParams = useSearchParams();
+  const initQuery = searchParams.get("q") || "";
+  const initCategory = (searchParams.get("category") as ResourceCategory | "all") || "all";
+  
+  let initLat: number | undefined = undefined;
+  let initLng: number | undefined = undefined;
+  let initLabel = "Waiting for location...";
+  
+  if (searchParams.get("lat") && searchParams.get("lng")) {
+    initLat = parseFloat(searchParams.get("lat")!);
+    initLng = parseFloat(searchParams.get("lng")!);
+    initLabel = "Using shared location.";
+  }
+
+  const [query, setQuery] = useState(initQuery);
+  const [category, setCategory] = useState<ResourceCategory | "all">(initCategory);
   const [openNow, setOpenNow] = useState(false);
   const [walkIn, setWalkIn] = useState(false);
   const [noId, setNoId] = useState(false);
   const [familyFriendly, setFamilyFriendly] = useState(false);
   const [wheelchair, setWheelchair] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [maxMiles, setMaxMiles] = useState(10);
+  const [maxMiles, setMaxMiles] = useState(50000);
   const [view, setView] = useState<"list" | "map">("map");
-  const [origin, setOrigin] = useState(DEMO_CENTER);
-  const [locationNote, setLocationNote] = useState(
-    "Using San Francisco demo area. Location is optional.",
+  const [origin, setOrigin] = useState<{ lat: number; lng: number; label?: string } | undefined>(
+    initLat !== undefined && initLng !== undefined ? { lat: initLat, lng: initLng, label: initLabel } : undefined
   );
+  const [locationNote, setLocationNote] = useState(initLabel);
 
-  const results = useMemo(
-    () =>
-      searchResources({
-        query,
-        category,
-        openNow,
-        walkIn,
-        noId,
-        familyFriendly,
-        wheelchair,
-        verifiedOnly,
-        maxMiles,
-        origin,
-      }),
-    [query, category, openNow, walkIn, noId, familyFriendly, wheelchair, verifiedOnly, maxMiles, origin],
-  );
+  const results = useMemo(() => {
+    if (!origin) return [];
+    return searchResources({
+      query,
+      category,
+      openNow,
+      walkIn,
+      noId,
+      familyFriendly,
+      wheelchair,
+      verifiedOnly,
+      maxMiles,
+      origin,
+    });
+  }, [query, category, openNow, walkIn, noId, familyFriendly, wheelchair, verifiedOnly, maxMiles, origin]);
 
   function requestLocation() {
     if (!navigator.geolocation) {
@@ -82,16 +104,6 @@ export default function FindHelpPage() {
             className="min-h-11 rounded-full bg-teal-700 px-4 text-sm font-semibold text-white"
           >
             Use my location
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setOrigin(DEMO_CENTER);
-              setLocationNote("Using San Francisco demo area. Location is optional.");
-            }}
-            className="min-h-11 rounded-full border border-sage-200 px-4 text-sm font-semibold"
-          >
-            Browse SF demo
           </button>
           <div className="inline-flex rounded-full border border-sage-200 p-1">
             <button
@@ -138,12 +150,12 @@ export default function FindHelpPage() {
             <input
               type="range"
               min={1}
-              max={20}
+              max={50000}
               value={maxMiles}
               onChange={(e) => setMaxMiles(Number(e.target.value))}
               className="mt-3 w-full"
             />
-            <span className="text-xs">Within {maxMiles} miles</span>
+            <span className="text-xs">Within {maxMiles >= 50000 ? "Any" : maxMiles} miles</span>
           </label>
           <fieldset>
             <legend className="text-sm font-medium">Quick filters</legend>
@@ -190,27 +202,45 @@ export default function FindHelpPage() {
       </details>
 
       <p className="text-sm text-teal-800" role="status">
-        {results.length} resources · sorted by open status, verification, and distance
+        {origin ? `${results.length} resources · sorted by open status, verification, and distance` : "Location required to view resources"}
       </p>
 
-      {view === "map" ? (
-        <div>
-          <ResourceMap resources={results} center={origin} origin={origin} heightClass="h-[520px]" />
-          <MapLegend />
-        </div>
-      ) : null}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {results.map((r) => (
-          <ResourceCard key={r.id} resource={r} distanceMiles={r.distanceMiles} />
-        ))}
-      </div>
-      {results.length === 0 ? (
+      {!origin ? (
         <div className="rounded-2xl border border-dashed border-sage-200 bg-white p-8 text-center">
-          <h2 className="text-lg font-semibold">No matching resources</h2>
-          <p className="mt-2 text-sm text-teal-800/80">Try widening distance or clearing filters.</p>
+          <h2 className="text-lg font-semibold text-teal-900">Please provide your location</h2>
+          <p className="mt-2 text-sm text-teal-800/80">
+            We need your location to show nearby clinics and resources.
+          </p>
+          <button
+            type="button"
+            onClick={requestLocation}
+            className="mt-6 min-h-11 rounded-full bg-teal-700 px-6 text-sm font-semibold text-white"
+          >
+            Use my location
+          </button>
         </div>
-      ) : null}
+      ) : (
+        <>
+          {view === "map" ? (
+            <div>
+              <ResourceMap resources={results} center={origin} origin={origin} heightClass="h-[520px]" />
+              <MapLegend />
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {results.map((r) => (
+              <ResourceCard key={r.id} resource={r} distanceMiles={r.distanceMiles} />
+            ))}
+          </div>
+          {results.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-sage-200 bg-white p-8 text-center">
+              <h2 className="text-lg font-semibold">No matching resources</h2>
+              <p className="mt-2 text-sm text-teal-800/80">Try widening distance or clearing filters.</p>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

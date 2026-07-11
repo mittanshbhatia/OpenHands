@@ -51,11 +51,25 @@ export function searchResources(filters: ResourceFilters): Array<Resource & { di
   const origin = filters.origin ?? { lat: 37.7749, lng: -122.4194 };
   const inferred = filters.query ? inferCategoriesFromQuery(filters.query) : [];
 
+  let offsetLat = 0;
+  let offsetLng = 0;
+  if (filters.origin && haversineMiles(filters.origin.lat, filters.origin.lng, 37.7749, -122.4194) > 10) {
+    // If the user is outside San Francisco, offset the demo data to cluster around their location.
+    offsetLat = filters.origin.lat - 37.7749;
+    offsetLng = filters.origin.lng - -122.4194;
+  }
+
   return resources
-    .map((r) => ({
-      ...r,
-      distanceMiles: Number(haversineMiles(origin.lat, origin.lng, r.latitude, r.longitude).toFixed(1)),
-    }))
+    .map((r) => {
+      const adaptedLat = r.latitude + offsetLat;
+      const adaptedLng = r.longitude + offsetLng;
+      return {
+        ...r,
+        latitude: adaptedLat,
+        longitude: adaptedLng,
+        distanceMiles: Number(haversineMiles(origin.lat, origin.lng, adaptedLat, adaptedLng).toFixed(1)),
+      };
+    })
     .filter((r) => {
       if (filters.category && filters.category !== "all" && r.category !== filters.category) return false;
       if (inferred.length && filters.query && !inferred.includes(r.category)) {

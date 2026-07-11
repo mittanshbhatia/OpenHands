@@ -39,12 +39,6 @@ export function SiteHeader() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex items-center gap-3">
             <OpenHandsLogo className="h-10 w-10" />
-            <div>
-              <div className="text-lg font-semibold tracking-tight text-teal-900">OpenHands</div>
-              <div className="hidden text-xs text-sage-500 sm:block">
-                Find support. Offer help. Strengthen your community.
-              </div>
-            </div>
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
             {nav.map((item) => (
@@ -69,9 +63,6 @@ export function SiteHeader() {
             </Link>
           </nav>
           <div className="flex items-center gap-2">
-            <span className="hidden rounded-full bg-coral-500/10 px-2.5 py-1 text-xs font-medium text-coral-600 sm:inline">
-              Demo Data
-            </span>
             <Link
               href="/need-help-now"
               className="inline-flex min-h-11 items-center rounded-full bg-coral-500 px-4 text-sm font-semibold text-white shadow-soft hover:bg-coral-600"
@@ -184,9 +175,7 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-cream-100/70">
-        Demonstration data for hackathon use. Availability can change — contact providers when possible.
-      </div>
+
     </footer>
   );
 }

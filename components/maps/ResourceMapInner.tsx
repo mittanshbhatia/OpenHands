@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import type { Resource } from "@/types";
 import { CATEGORY_LABELS } from "@/lib/demo/seed";
-import { categoryIcon, originIcon } from "@/lib/maps/icons";
+import { categoryIcon, originIcon, liveLocationIcon, CATEGORY_COLORS } from "@/lib/maps/icons";
 import {
   fetchOsrmRoute,
   formatRouteSummary,
@@ -113,14 +113,14 @@ export function ResourceMapInner({
         <div className="inline-flex rounded-full border border-sage-200 bg-white p-1 text-sm">
           <button
             type="button"
-            className={`min-h-9 rounded-full px-3 font-medium ${profile === "foot" ? "bg-teal-700 text-white" : ""}`}
+            className={`min-h-9 rounded-full px-3 font-medium transition ${profile === "foot" ? "bg-teal-700 text-white" : ""}`}
             onClick={() => setProfile("foot")}
           >
             Walk path
           </button>
           <button
             type="button"
-            className={`min-h-9 rounded-full px-3 font-medium ${profile === "driving" ? "bg-teal-700 text-white" : ""}`}
+            className={`min-h-9 rounded-full px-3 font-medium transition ${profile === "driving" ? "bg-teal-700 text-white" : ""}`}
             onClick={() => setProfile("driving")}
           >
             Drive route
@@ -129,7 +129,7 @@ export function ResourceMapInner({
         {selected ? (
           <button
             type="button"
-            className="min-h-9 rounded-full border border-sage-200 bg-white px-3 text-sm font-medium"
+            className="min-h-9 rounded-full border border-sage-200 bg-white px-3 text-sm font-medium hover:bg-sage-100 transition"
             onClick={() => {
               setSelectedId(null);
               setRoute(null);
@@ -144,7 +144,7 @@ export function ResourceMapInner({
         </p>
       </div>
 
-      <div className={`${heightClass} overflow-hidden rounded-2xl border border-sage-200 shadow-soft`}>
+      <div className={`relative ${heightClass} overflow-hidden rounded-2xl border border-sage-200 shadow-soft`}>
         <MapContainer
           center={[mapCenter.lat, mapCenter.lng]}
           zoom={13}
@@ -153,17 +153,18 @@ export function ResourceMapInner({
           aria-label="Interactive satellite resource map"
         >
           <LayersControl position="topright">
-            <LayersControl.BaseLayer checked name="Satellite">
+            <LayersControl.BaseLayer checked name="Google Maps">
               <TileLayer
-                attribution='Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                maxZoom={19}
+                attribution="&copy; Google"
+                url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+                maxZoom={20}
               />
             </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Streets">
+            <LayersControl.BaseLayer name="Google Satellite">
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution="&copy; Google"
+                url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                maxZoom={20}
               />
             </LayersControl.BaseLayer>
             <LayersControl.Overlay checked name="Place labels">
@@ -178,12 +179,16 @@ export function ResourceMapInner({
 
           <FitBounds resources={resources} origin={start} route={route} />
 
-          <Marker position={[start.lat, start.lng]} icon={originIcon()}>
-            <Popup>
-              <strong>{origin?.label ?? "Your start point"}</strong>
-              <div className="text-xs">Routes begin here</div>
-            </Popup>
-          </Marker>
+          {origin?.label === "Your location" || origin?.label === "Using shared location." ? (
+            <LiveLocationMarker initialLat={start.lat} initialLng={start.lng} />
+          ) : (
+            <Marker position={[start.lat, start.lng]} icon={originIcon()}>
+              <Popup>
+                <strong>{origin?.label ?? "Your start point"}</strong>
+                <div className="text-xs">Routes begin here</div>
+              </Popup>
+            </Marker>
+          )}
 
           {resources.map((r) => (
             <Marker
@@ -203,12 +208,12 @@ export function ResourceMapInner({
                   ) : null}
                   <button
                     type="button"
-                    className="mt-1 block w-full rounded bg-teal-700 px-2 py-1 text-left text-xs font-semibold text-white"
+                    className="mt-1 block w-full rounded bg-teal-700 px-2 py-1 text-left text-xs font-semibold text-white transition hover:bg-teal-600"
                     onClick={() => setSelectedId(r.id)}
                   >
                     Show {profile === "foot" ? "walk" : "drive"} path
                   </button>
-                  <Link className="block text-teal-700 underline" href={`/resources/${r.id}`}>
+                  <Link className="block text-teal-700 underline mt-1 text-sm font-medium hover:text-teal-900" href={`/resources/${r.id}`}>
                     Open details
                   </Link>
                 </div>
@@ -218,12 +223,24 @@ export function ResourceMapInner({
 
           {route ? (
             <>
+              {/* Google Maps style route border */}
               <Polyline
                 positions={route.coordinates}
                 pathOptions={{
-                  color: profile === "foot" ? "#e56b45" : "#124f3b",
-                  weight: 5,
-                  opacity: 0.9,
+                  color: profile === "foot" ? "#1967D2" : "#1967D2",
+                  weight: 10,
+                  opacity: 0.8,
+                  lineJoin: "round",
+                  lineCap: "round",
+                }}
+              />
+              {/* Google Maps style route inner */}
+              <Polyline
+                positions={route.coordinates}
+                pathOptions={{
+                  color: profile === "foot" ? "#4285F4" : "#4285F4",
+                  weight: 6,
+                  opacity: 1,
                   lineJoin: "round",
                   lineCap: "round",
                 }}
@@ -231,13 +248,48 @@ export function ResourceMapInner({
               {route.coordinates.length > 1 ? (
                 <CircleMarker
                   center={route.coordinates[Math.floor(route.coordinates.length / 2)]}
-                  radius={4}
-                  pathOptions={{ color: "#fff", fillColor: "#e56b45", fillOpacity: 1 }}
+                  radius={5}
+                  pathOptions={{ color: "#fff", fillColor: "#4285F4", fillOpacity: 1, weight: 2 }}
                 />
               ) : null}
             </>
           ) : null}
         </MapContainer>
+
+        {/* Floating Phone UI Card for directions */}
+        {route?.steps && route.steps.length > 0 && (
+          <div className="absolute top-4 left-4 z-[1000] max-h-[90%] w-80 overflow-y-auto rounded-3xl bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-sage-200 pointer-events-auto flex flex-col custom-scrollbar">
+            <div className="sticky top-0 bg-teal-700 text-white p-5 shadow-sm z-10 flex justify-between items-center">
+              <div>
+                <h3 className="font-semibold text-lg">{formatRouteSummary(route)}</h3>
+                <p className="text-xs opacity-90 mt-0.5">{profile === "foot" ? "Walk" : "Drive"} to {selected?.name}</p>
+              </div>
+              <button 
+                onClick={() => { setSelectedId(null); setRoute(null); }} 
+                className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 text-xl font-light leading-none transition"
+              >
+                &times;
+              </button>
+            </div>
+            <ol className="p-5 space-y-4 text-sm text-teal-900 bg-white">
+              {route.steps.map((step, i) => (
+                <li key={i} className="flex items-start gap-4 border-b border-sage-200 pb-4 last:border-0 last:pb-0">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sage-100 text-xs font-semibold text-teal-700 mt-0.5">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="font-medium text-[15px]">{step.instruction}</p>
+                    {step.distanceMeters > 0 && (
+                      <p className="text-xs text-sage-500 mt-1 font-medium">
+                        {Math.max(1, Math.round(step.distanceMeters * 3.28084))} ft
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </div>
 
       <ul className="flex flex-wrap gap-2 text-xs text-teal-800/80">
@@ -258,18 +310,61 @@ export function ResourceMapInner({
           Start point
         </li>
       </ul>
+
     </div>
   );
 }
 
 function categoryColorSafe(category: string) {
-  const map: Record<string, string> = {
-    food: "#cf5230",
-    shelter: "#124f3b",
-    clothing: "#1f7a5c",
-    hygiene: "#3b82a0",
-    medical: "#b45309",
-    employment: "#5b6b8a",
-  };
-  return map[category] ?? "#124f3b";
+  return CATEGORY_COLORS[category] ?? "#8E8E93";
+}
+
+function LiveLocationMarker({ initialLat, initialLng }: { initialLat: number, initialLng: number }) {
+  const [pos, setPos] = useState({ lat: initialLat, lng: initialLng });
+  const [heading, setHeading] = useState<number | null>(null);
+
+  useEffect(() => {
+    let watchId: number;
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (p) => {
+          setPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+          if (p.coords.heading !== null && !isNaN(p.coords.heading)) {
+            setHeading(p.coords.heading);
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true }
+      );
+    }
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      const e = event as any;
+      if (e.webkitCompassHeading) {
+        setHeading(e.webkitCompassHeading);
+      } else if (e.alpha !== null) {
+        setHeading(360 - e.alpha);
+      }
+    };
+
+    window.addEventListener("deviceorientationabsolute", handleOrientation);
+    window.addEventListener("deviceorientation", handleOrientation as EventListener);
+
+    return () => {
+      if (watchId !== undefined && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+      window.removeEventListener("deviceorientationabsolute", handleOrientation);
+      window.removeEventListener("deviceorientation", handleOrientation as EventListener);
+    };
+  }, []);
+
+  return (
+    <Marker position={[pos.lat, pos.lng]} icon={liveLocationIcon(heading)}>
+      <Popup>
+        <strong>Your live location</strong>
+        <div className="text-xs">Tracking active</div>
+      </Popup>
+    </Marker>
+  );
 }

@@ -1,10 +1,16 @@
 export type LatLng = { lat: number; lng: number };
 
+export type RouteStep = {
+  instruction: string;
+  distanceMeters: number;
+};
+
 export type RouteResult = {
   coordinates: [number, number][];
   distanceMeters: number;
   durationSeconds: number;
   profile: "foot" | "driving";
+  steps?: RouteStep[];
 };
 
 /** Fetch a walking or driving path via public OSRM demo (no API key). */
@@ -16,7 +22,7 @@ export async function fetchOsrmRoute(
   const url =
     `https://router.project-osrm.org/route/v1/${profile}/` +
     `${from.lng},${from.lat};${to.lng},${to.lat}` +
-    `?overview=full&geometries=geojson`;
+    `?overview=full&geometries=geojson&steps=true`;
 
   try {
     const res = await fetch(url);
@@ -27,15 +33,49 @@ export async function fetchOsrmRoute(
         distance: number;
         duration: number;
         geometry: { coordinates: [number, number][] };
+        legs?: Array<{
+          steps?: Array<{
+            distance: number;
+            name: string;
+            maneuver: { type: string; modifier?: string };
+          }>;
+        }>;
       }>;
     };
     const route = data.routes?.[0];
     if (!route?.geometry?.coordinates?.length) return null;
+    
+    const steps: RouteStep[] = [];
+    if (route.legs?.[0]?.steps) {
+      for (const step of route.legs[0].steps) {
+        const maneuver = step.maneuver;
+        const name = step.name ? ` onto ${step.name}` : "";
+        
+        let action = maneuver.type;
+        if (action === "depart") action = "Head";
+        else if (action === "turn") action = "Turn";
+        else if (action === "arrive") action = "Arrive";
+        else if (action === "continue") action = "Continue";
+        else action = action.charAt(0).toUpperCase() + action.slice(1);
+        
+        let modifier = maneuver.modifier ? ` ${maneuver.modifier.replace(/-/g, ' ')}` : "";
+        if (action === "Arrive") modifier = "";
+        
+        let instruction = `${action}${modifier}${name}`;
+        
+        steps.push({
+          instruction: instruction.trim().replace(/\s+/g, ' '),
+          distanceMeters: step.distance
+        });
+      }
+    }
+
     return {
       coordinates: route.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]),
       distanceMeters: route.distance,
       durationSeconds: route.duration,
       profile,
+      steps,
     };
   } catch {
     return null;
