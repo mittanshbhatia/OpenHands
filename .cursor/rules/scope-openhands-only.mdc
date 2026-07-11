@@ -1,0 +1,16 @@
+---
+description: Only modify OpenHands; never touch other repos or projects
+alwaysApply: true
+---
+
+# Project scope lock
+
+All work in this session/workspace for OpenHands must stay inside **OpenHands only**:
+
+- Allowed: `/Users/anubhavbhatia/Projects/OpenHands`, `mittanshbhatia/OpenHands` on GitHub, Vercel project `openhands`
+- **Do not** read, modify, deploy, or change env/data for:
+  - unlimitedvoices / Unlimited Voices
+  - chatbot
+  - any other local repos, GitHub repos, Vercel projects, or Supabase projects
+
+Create new OpenHands-only resources when needed. Never reuse or alter credentials, schemas, buckets, or settings from other apps.
