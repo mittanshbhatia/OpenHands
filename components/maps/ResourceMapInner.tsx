@@ -85,14 +85,10 @@ function MapReady() {
 
 function FollowLivePosition({ pos }: { pos: { lat: number; lng: number } | null }) {
   const map = useMap();
-  const lastPan = useRef<{ lat: number; lng: number } | null>(null);
   useEffect(() => {
     if (!pos) return;
-    const prev = lastPan.current;
-    // Pan as soon as you've moved a few meters so the map tracks you live.
-    if (prev && haversineMeters(prev.lat, prev.lng, pos.lat, pos.lng) < 3) return;
-    lastPan.current = pos;
-    map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.2 });
+    // Always snap the map to your live GPS — every update.
+    map.setView([pos.lat, pos.lng], map.getZoom(), { animate: true });
   }, [map, pos?.lat, pos?.lng, pos]);
   return null;
 }
@@ -151,6 +147,7 @@ export function ResourceMapInner({
     lng: number;
     accuracy?: number;
     speed?: number;
+    at?: number;
   } | null>(null);
   const [stepProgress, setStepProgress] = useState(0);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -179,49 +176,27 @@ export function ResourceMapInner({
     if (!navMode && !focusId) setSelectedId(null);
   }, [focusId, navMode]);
 
-  // Continuous high-accuracy GPS — every fix instantly trims path + ETA (no network wait).
+  // Force a fresh GPS fix every 1 second + watchPosition so the blue dot
+  // and ETA auto-update continuously as you move.
   useEffect(() => {
     if ((!selected && !navMode) || typeof navigator === "undefined" || !navigator.geolocation) return;
 
-    let bestAccuracy = Infinity;
     const applyFix = (p: GeolocationPosition) => {
       const next = {
         lat: p.coords.latitude,
         lng: p.coords.longitude,
         accuracy: p.coords.accuracy,
         speed: typeof p.coords.speed === "number" && p.coords.speed >= 0 ? p.coords.speed : undefined,
+        at: Date.now(),
       };
-      // Ignore very poor fixes once we already have a decent one.
-      if (
-        typeof next.accuracy === "number" &&
-        next.accuracy > 100 &&
-        bestAccuracy < 45 &&
-        livePosRef.current
-      ) {
-        return;
-      }
-      if (typeof next.accuracy === "number") {
-        bestAccuracy = Math.min(bestAccuracy, next.accuracy);
-      }
 
-      const prev = livePosRef.current;
-      // Accept tiny moves so distance/ETA tick down continuously while walking.
-      if (prev && haversineMeters(prev.lat, prev.lng, next.lat, next.lng) < 0.6) {
-        if (typeof next.accuracy === "number" && next.accuracy < (prev.accuracy ?? Infinity)) {
-          livePosRef.current = next;
-          setLivePos(next);
-        }
-        return;
-      }
-
+      // Always accept the newest fix so the marker moves every second.
       livePosRef.current = next;
       setLivePos(next);
 
-      // Instant local update from the last real route — do not wait for a refetch.
       const activeRoute = routeRef.current;
       if (activeRoute?.coordinates?.length) {
         const progress = liveRouteProgress(activeRoute, next);
-        // If device reports speed, refine ETA with measured pace.
         let seconds = progress.remainingSeconds;
         if (typeof next.speed === "number" && next.speed > 0.4) {
           const fromDevice = progress.remainingMeters / next.speed;
@@ -239,10 +214,9 @@ export function ResourceMapInner({
           lastStart != null ? haversineMeters(next.lat, next.lng, lastStart.lat, lastStart.lng) : 0;
         const now = Date.now();
         const walking = profileRef.current === "foot";
-        // Re-fetch a fresh Google/OSRM path often enough to stay accurate, without flooding the API.
-        const coolDownMs = walking ? 2500 : 4000;
-        const moveThreshold = walking ? 12 : 28;
-        const offRouteThreshold = walking ? 18 : 35;
+        const coolDownMs = walking ? 2000 : 3500;
+        const moveThreshold = walking ? 10 : 22;
+        const offRouteThreshold = walking ? 15 : 30;
         if (
           now - lastRefetchAtRef.current > coolDownMs &&
           (movedFromStart > moveThreshold || progress.offRouteMeters > offRouteThreshold)
@@ -253,17 +227,28 @@ export function ResourceMapInner({
       }
     };
 
-    navigator.geolocation.getCurrentPosition(applyFix, () => {}, {
+    const pollOpts: PositionOptions = {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 8000,
-    });
-    const id = navigator.geolocation.watchPosition(applyFix, () => {}, {
+      timeout: 2500,
+    };
+
+    const poll = () => {
+      navigator.geolocation.getCurrentPosition(applyFix, () => {}, pollOpts);
+    };
+
+    poll();
+    const intervalId = window.setInterval(poll, 1000);
+    const watchId = navigator.geolocation.watchPosition(applyFix, () => {}, {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 10000,
+      timeout: 5000,
     });
-    return () => navigator.geolocation.clearWatch(id);
+
+    return () => {
+      window.clearInterval(intervalId);
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [selected, navMode]);
 
   // Keep step/progress in sync if the route object itself changes (new server path).
@@ -730,8 +715,9 @@ export function ResourceMapInner({
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#188038] opacity-60" />
                       <span className="relative inline-flex h-2 w-2 rounded-full bg-[#188038]" />
                     </span>
-                    Live GPS — path & ETA update as you move
+                    Live GPS — updates every second as you move
                     {typeof livePos.accuracy === "number" ? ` · ±${Math.round(livePos.accuracy)}m` : ""}
+                    {livePos.at ? ` · ${new Date(livePos.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : ""}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-[#5f6368]">Waiting for GPS for live tracking…</p>

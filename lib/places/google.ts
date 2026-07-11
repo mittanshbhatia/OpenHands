@@ -1,5 +1,5 @@
 import type { OpenStatus, Resource, ResourceCategory, VerificationStatus } from "@/types";
-import { placeFitsCategory } from "@/lib/places/category-match";
+import { placeFitsCategory, placeIsFreeHelp } from "@/lib/places/category-match";
 
 export type GooglePlace = {
   id: string;
@@ -24,18 +24,18 @@ export type GooglePlace = {
   editorialSummary?: { text?: string };
 };
 
-/** Text queries tuned for homeless / essential services worldwide. */
+/** Text queries for FREE essential services only (no paid restaurants/hotels/malls). */
 export const CATEGORY_SEARCH: Record<ResourceCategory, string[]> = {
-  food: ["food pantry", "food bank", "soup kitchen", "free meal program", "community meals"],
-  shelter: ["homeless shelter", "emergency shelter", "homeless overnight shelter", "shelter for homeless"],
-  clothing: ["free clothing closet", "clothing bank", "Goodwill clothing", "thrift store clothing"],
-  hygiene: ["public showers", "day center homeless", "hygiene center"],
-  medical: ["free clinic", "community health center", "urgent care"],
-  employment: ["workforce center", "job center", "employment center"],
-  transportation: ["bus station", "train station", "transit center"],
-  legal: ["legal aid", "free legal clinic"],
-  internet: ["public library", "library"],
-  donation: ["donation center", "Salvation Army donation", "charity donation", "Goodwill donation"],
+  food: ["free food pantry", "food bank", "free soup kitchen", "homeless free meal", "free community meals"],
+  shelter: ["homeless shelter free", "emergency shelter homeless", "overnight shelter homeless", "free shelter for homeless"],
+  clothing: ["free clothing closet", "free clothing bank", "free clothes homeless", "coat closet free"],
+  hygiene: ["free public showers homeless", "homeless day center showers", "free hygiene center"],
+  medical: ["free clinic", "free medical clinic", "community health center free", "federally qualified health center"],
+  employment: ["free workforce center", "job center free help", "employment assistance free"],
+  transportation: ["free transit assistance homeless", "homeless transportation help", "free bus pass assistance"],
+  legal: ["free legal aid", "free legal clinic", "legal aid society"],
+  internet: ["public library free wifi", "free public library computers", "library"],
+  donation: ["donation center charity", "Salvation Army donation", "Goodwill donation drop off", "charity donation center"],
 };
 
 function slugify(name: string) {
@@ -121,10 +121,10 @@ export function googlePlaceToResource(place: GooglePlace, category: ResourceCate
     slug: slugify(name) || place.id,
     description:
       place.editorialSummary?.text ||
-      `Verified via Google Places near you. ${
+      `Free / no-cost help near you (Google Places). ${
         category === "shelter"
-          ? "Call this location to ask about a bed. Beds cannot be reserved inside this app."
-          : "Call or visit to confirm services before you go."
+          ? "Call to ask about a free bed tonight. Beds cannot be reserved in this app."
+          : "Confirm it is still free when you call or arrive."
       }`,
     category,
     address,
@@ -228,6 +228,7 @@ async function fetchPlacesJson(
 
 function mergePlaces(into: Map<string, Resource>, places: GooglePlace[] | undefined, category: ResourceCategory) {
   for (const place of places ?? []) {
+    if (!placeIsFreeHelp(place, category)) continue;
     if (!placeFitsCategory(place, category)) continue;
     const mapped = googlePlaceToResource(place, category);
     if (mapped && !into.has(mapped.id)) into.set(mapped.id, mapped);

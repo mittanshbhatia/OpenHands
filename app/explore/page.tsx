@@ -210,8 +210,9 @@ function ExploreInner() {
           What do you need today?
         </h1>
         <p className="mt-1 text-sm text-teal-800/80">
-          We search Google Places for the needs you pick near{" "}
-          <strong>{origin.label}</strong> — food only shows food, shelter only shows shelters, both shows both.
+          We search Google Places for <strong>free</strong> help near{" "}
+          <strong>{origin.label}</strong> — food only shows free meals/pantries, shelter only shows free shelters.
+          No restaurants, hotels, or paid businesses.
         </p>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
