@@ -15,7 +15,7 @@ export function OpenHandsLogo({
   softEdge = true,
 }: Props) {
   return (
-    <span className={clsx("inline-flex items-center gap-3", withWordmark && "min-h-12")}>
+    <span className={clsx("inline-flex items-center justify-start gap-2.5 sm:gap-3", withWordmark && "min-h-12")}>
       <span
         className={clsx("relative inline-flex shrink-0 overflow-hidden", className)}
         style={
@@ -34,7 +34,7 @@ export function OpenHandsLogo({
           alt={withWordmark ? "" : "OpenHands"}
           width={96}
           height={96}
-          className="h-full w-full object-contain"
+          className="h-full w-full object-contain object-left"
           priority
         />
       </span>

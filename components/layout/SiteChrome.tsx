@@ -32,8 +32,12 @@ export function SiteHeader() {
         Skip to content
       </a>
       <header className="sticky top-0 z-40 border-b border-sage-200/80 bg-cream-50/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/" className="flex items-center gap-1" aria-label="Open Hands home">
+        <div className="flex w-full items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4 md:px-5">
+          <Link
+            href="/"
+            className="mr-auto flex shrink-0 items-center justify-start gap-1 pl-0"
+            aria-label="Open Hands home"
+          >
             <OpenHandsLogo className="h-14 w-14 sm:h-16 sm:w-16" withWordmark softEdge />
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
@@ -52,7 +56,7 @@ export function SiteHeader() {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/need-help-now"
               className="inline-flex min-h-11 items-center rounded-full bg-coral-500 px-4 text-sm font-semibold text-white shadow-soft hover:bg-coral-600"
