@@ -1,0 +1,10 @@
+---
+description: All git commits and pushes must use Mittansh Bhatia, never cursoragent
+alwaysApply: true
+---
+
+# Git author identity
+
+- Author/committer must be **Mittansh Bhatia** `<mittanshbhatia@users.noreply.github.com>`
+- Never use cursoragent / Cursor as author, committer, or Co-authored-by
+- Never invite cursoragent as a collaborator
