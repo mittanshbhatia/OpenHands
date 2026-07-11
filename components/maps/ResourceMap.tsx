@@ -10,6 +10,9 @@ type Props = {
   origin?: { lat: number; lng: number; label?: string } | null;
   focusId?: string | null;
   heightClass?: string;
+  navMode?: boolean;
+  onExitNav?: () => void;
+  onNavigate?: (id: string) => void;
 };
 
 export function ResourceMap(props: Props) {
@@ -39,9 +42,9 @@ export function ResourceMap(props: Props) {
 export function MapLegend() {
   return (
     <p className="mt-2 text-xs text-teal-800/70">
-      Satellite view by default. Use the layer control for streets or labels. Colored letter icons mark
-      categories ({Object.values(CATEGORY_LABELS).slice(0, 4).join(", ")}, …). Tap an icon to draw a
-      walk or drive path from your start point. A full list view is always available.
+      Use the filter chips to show only what you need ({Object.values(CATEGORY_LABELS).slice(0, 4).join(", ")}
+      , …). Colored pins mark each category. Tap one to draw a walk or drive path from your start point.
+      Switch to satellite anytime with the layer control (top-right). A full list view is always available.
     </p>
   );
 }

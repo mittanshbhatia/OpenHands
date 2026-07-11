@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import { exploreChooseHref } from "@/lib/maps/nav-links";
 
 export function FindHelpNearMeButton() {
   const router = useRouter();
@@ -17,12 +18,22 @@ export function FindHelpNearMeButton() {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        router.push(`/find-help?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
+        const next = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          label: "Your location",
+        };
+        try {
+          sessionStorage.setItem("openhands.lastOrigin", JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        router.push(exploreChooseHref(next));
       },
       () => {
         router.push("/find-help");
       },
-      { enableHighAccuracy: false, timeout: 8000 }
+      { enableHighAccuracy: false, timeout: 8000 },
     );
   };
 

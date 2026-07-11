@@ -19,12 +19,41 @@
 
 :root {
   color-scheme: light;
+
+  /* shadcn-style design tokens mapped to the OpenHands palette */
+  --background: 40 33% 97%;
+  --foreground: 0 0% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 0 0% 10%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 42%;
+  --accent: 0 0% 94%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 6 60% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 4% 92%;
+  --input: 240 4% 92%;
+  --ring: 0 0% 45%;
 }
 
 body {
   background:
     radial-gradient(circle at top left, rgba(215, 235, 224, 0.7), transparent 40%),
     linear-gradient(180deg, #fbf8f2 0%, #f4eee3 100%);
+}
+
+html {
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -60,7 +89,7 @@ body {
   white-space: normal;
 }
 
-/* Category markers are custom HTML — hide Leaflet’s default icon chrome */
+/* Category markers are custom HTML; hide Leaflet's default icon chrome */
 .openhands-marker,
 .openhands-origin {
   background: transparent !important;
@@ -76,19 +105,13 @@ body {
   border-radius: 12px;
 }
 
-/* Category markers are custom HTML — hide Leaflet’s default icon chrome */
-.openhands-marker,
-.openhands-origin {
-  background: transparent !important;
-  border: none !important;
+/* Scrollable areas that should scroll without showing a scrollbar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-.leaflet-container {
-  font: inherit;
-  z-index: 0;
-}
-
-.leaflet-popup-content-wrapper {
-  border-radius: 12px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 

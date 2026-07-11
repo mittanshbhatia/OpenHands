@@ -31,6 +31,8 @@ export type UserRole = "guest" | "donor" | "host" | "provider" | "volunteer" | "
 
 export type Resource = {
   id: string;
+  /** Google Place ID when sourced from Places API */
+  placeId?: string;
   name: string;
   slug: string;
   description: string;
@@ -43,6 +45,13 @@ export type Resource = {
   longitude: number;
   phone?: string;
   website?: string;
+  /** Official Google Maps place page */
+  googleMapsUri?: string;
+  /** Google rating 1–5 */
+  rating?: number;
+  reviewCount?: number;
+  /** High rating + enough reviews */
+  recommended?: boolean;
   verificationStatus: VerificationStatus;
   lastVerifiedAt: string;
   openStatus: OpenStatus;
@@ -59,6 +68,8 @@ export type Resource = {
   accessibility: string;
   hours: string;
   orgName: string;
+  bookingPhone?: string;
+  bookingNotes?: string;
 };
 
 export type CommunityNeed = {

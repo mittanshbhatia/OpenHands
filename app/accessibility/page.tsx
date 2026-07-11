@@ -1,14 +1,14 @@
 export default function AccessibilityPage() {
   return (
-    <article className="prose prose-teal mx-auto max-w-2xl pb-10">
-      <h1 className="text-3xl font-semibold">Accessibility</h1>
-      <p className="mt-3 text-sm text-teal-800/80">
-        OpenHands aims for usable experiences on keyboard, screen readers, and high-contrast displays.
-        Large tap targets, skip links, and clear status labels are built into the demo.
+    <article className="mx-auto max-w-2xl space-y-3 pb-10 text-sm text-teal-800/90">
+      <h1 className="text-3xl font-semibold text-teal-900">Accessibility</h1>
+      <p>
+        OpenHands aims for clear labels, large tap targets, keyboard-friendly controls, and status text that
+        screen readers can announce.
       </p>
-      <p className="mt-3 text-sm text-teal-800/80">
-        If something is hard to use, email accessibility@demo.openhands (demo address) or use Report on a
-        resource page.
+      <p>
+        If something is hard to use, tell us from the Community page or email the address listed on your
+        local 211 site — we want every neighbor to reach real help.
       </p>
     </article>
   );

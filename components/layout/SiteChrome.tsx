@@ -8,11 +8,9 @@ import {
   Home,
   Landmark,
   Search,
-  UserRound,
   Bookmark,
 } from "lucide-react";
 import { OpenHandsLogo } from "@/components/brand/OpenHandsLogo";
-import { useAuth } from "@/lib/auth/demo-auth";
 import clsx from "clsx";
 
 const nav = [
@@ -20,12 +18,10 @@ const nav = [
   { href: "/give-help", label: "Give Help", icon: HandHeart },
   { href: "/community", label: "Community", icon: HeartHandshake },
   { href: "/saved", label: "Saved", icon: Bookmark },
-  { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const { user } = useAuth();
 
   return (
     <>
@@ -37,8 +33,8 @@ export function SiteHeader() {
       </a>
       <header className="sticky top-0 z-40 border-b border-sage-200/80 bg-cream-50/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/" className="flex items-center gap-3">
-            <OpenHandsLogo className="h-10 w-10" />
+          <Link href="/" className="flex items-center gap-1" aria-label="Open Hands home">
+            <OpenHandsLogo className="h-14 w-14 sm:h-16 sm:w-16" withWordmark softEdge />
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
             {nav.map((item) => (
@@ -55,12 +51,6 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
-            <Link
-              href="/admin"
-              className="rounded-full px-3 py-2 text-sm font-medium text-teal-900 hover:bg-sage-100"
-            >
-              Admin
-            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link
@@ -68,12 +58,6 @@ export function SiteHeader() {
               className="inline-flex min-h-11 items-center rounded-full bg-coral-500 px-4 text-sm font-semibold text-white shadow-soft hover:bg-coral-600"
             >
               I Need Help Now
-            </Link>
-            <Link
-              href="/profile"
-              className="hidden rounded-full border border-sage-200 px-3 py-2 text-sm text-teal-800 md:inline"
-            >
-              {user ? user.name.split(" ")[0] : "Sign in"}
             </Link>
           </div>
         </div>
@@ -83,7 +67,7 @@ export function SiteHeader() {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-sage-200 bg-cream-50/95 backdrop-blur md:hidden"
         aria-label="Mobile primary"
       >
-        <ul className="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 py-2">
+        <ul className="mx-auto grid max-w-lg grid-cols-4 gap-1 px-2 py-2">
           {nav.map((item) => {
             const Icon = item.icon;
             const active = pathname?.startsWith(item.href);

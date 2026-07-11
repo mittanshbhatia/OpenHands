@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, Search } from "lucide-react";
+import { exploreChooseHref } from "@/lib/maps/nav-links";
 
 export function HomeSearchBar() {
   const router = useRouter();
@@ -11,11 +12,7 @@ export function HomeSearchBar() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      router.push(`/find-help?q=${encodeURIComponent(query)}`);
-    } else {
-      router.push("/find-help");
-    }
+    router.push("/find-help");
   };
 
   const handleAutoLocate = () => {
@@ -27,12 +24,22 @@ export function HomeSearchBar() {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        router.push(`/find-help?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
+        const next = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          label: query.trim() || "Your location",
+        };
+        try {
+          sessionStorage.setItem("openhands.lastOrigin", JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        router.push(exploreChooseHref(next));
       },
       () => {
         router.push("/find-help");
       },
-      { enableHighAccuracy: false, timeout: 8000 }
+      { enableHighAccuracy: false, timeout: 8000 },
     );
   };
 

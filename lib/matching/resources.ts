@@ -1,25 +1,13 @@
-import { resources } from "@/lib/demo/seed";
+import { haversineMiles } from "@/lib/matching/geo";
 import type { Resource, ResourceCategory } from "@/types";
 
-export function haversineMiles(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const R = 3958.8;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
+export { haversineMiles };
 
 export type ResourceFilters = {
   query?: string;
   category?: ResourceCategory | "all";
+  /** When set, only these categories appear (food-only → food only; food+shelter → both). */
+  categories?: ResourceCategory[];
   openNow?: boolean;
   walkIn?: boolean;
   noId?: boolean;
@@ -28,6 +16,8 @@ export type ResourceFilters = {
   verifiedOnly?: boolean;
   maxMiles?: number;
   origin?: { lat: number; lng: number } | null;
+  /** Live Google Places results for this session (no fictional seed). */
+  catalog?: Resource[];
 };
 
 const INTENT_MAP: Array<{ pattern: RegExp; categories: ResourceCategory[] }> = [
@@ -47,35 +37,31 @@ export function inferCategoriesFromQuery(query: string): ResourceCategory[] {
   return [...new Set(hits)];
 }
 
+/**
+ * Filter/sort a live catalog of real Google Places.
+ * Never invents coordinates or offsets places to fake proximity.
+ */
 export function searchResources(filters: ResourceFilters): Array<Resource & { distanceMiles: number }> {
-  const origin = filters.origin ?? { lat: 37.7749, lng: -122.4194 };
+  const origin = filters.origin;
+  const catalog = filters.catalog ?? [];
+  if (!origin || catalog.length === 0) return [];
+
   const inferred = filters.query ? inferCategoriesFromQuery(filters.query) : [];
 
-  let offsetLat = 0;
-  let offsetLng = 0;
-  if (filters.origin && haversineMiles(filters.origin.lat, filters.origin.lng, 37.7749, -122.4194) > 10) {
-    // If the user is outside San Francisco, offset the demo data to cluster around their location.
-    offsetLat = filters.origin.lat - 37.7749;
-    offsetLng = filters.origin.lng - -122.4194;
-  }
-
-  return resources
-    .map((r) => {
-      const adaptedLat = r.latitude + offsetLat;
-      const adaptedLng = r.longitude + offsetLng;
-      return {
-        ...r,
-        latitude: adaptedLat,
-        longitude: adaptedLng,
-        distanceMiles: Number(haversineMiles(origin.lat, origin.lng, adaptedLat, adaptedLng).toFixed(1)),
-      };
-    })
+  return catalog
+    .map((r) => ({
+      ...r,
+      distanceMiles: Number(haversineMiles(origin.lat, origin.lng, r.latitude, r.longitude).toFixed(1)),
+    }))
     .filter((r) => {
+      if (filters.categories?.length && !filters.categories.includes(r.category)) return false;
       if (filters.category && filters.category !== "all" && r.category !== filters.category) return false;
-      if (inferred.length && filters.query && !inferred.includes(r.category)) {
-        // still allow text match in name/description
+      if (inferred.length && filters.query) {
         const q = filters.query.toLowerCase();
-        if (!`${r.name} ${r.description} ${r.essentials.join(" ")}`.toLowerCase().includes(q)) return false;
+        const textHit = `${r.name} ${r.description} ${r.essentials.join(" ")}`.toLowerCase().includes(q);
+        // Query intent must match — don't mix unrelated categories.
+        if (!inferred.includes(r.category) && !textHit) return false;
+        if (inferred.length && !inferred.includes(r.category)) return false;
       }
       if (filters.openNow && r.openStatus !== "open_now" && r.openStatus !== "closing_soon") return false;
       if (filters.walkIn && !r.walkInAllowed) return false;
@@ -95,8 +81,10 @@ export function searchResources(filters: ResourceFilters): Array<Resource & { di
     .sort((a, b) => {
       const score = (r: Resource & { distanceMiles: number }) => {
         let s = 0;
+        if (r.recommended) s += 60;
         if (r.openStatus === "open_now") s += 50;
         if (r.verificationStatus.startsWith("verified")) s += 30;
+        s += (r.rating ?? 0) * 8;
         s += Math.max(0, 20 - r.distanceMiles);
         return s;
       };
@@ -104,8 +92,8 @@ export function searchResources(filters: ResourceFilters): Array<Resource & { di
     });
 }
 
-export function getResourceById(id: string) {
-  return resources.find((r) => r.id === id || r.slug === id);
+export function getResourceById(id: string, catalog: Resource[] = []) {
+  return catalog.find((r) => r.id === id || r.slug === id || r.placeId === id);
 }
 
 export function explainDonationMatch(input: {

@@ -1,18 +1,8 @@
 import L from "leaflet";
 import type { ResourceCategory } from "@/types";
+import { CATEGORY_COLORS, categoryColor } from "@/lib/maps/colors";
 
-export const CATEGORY_COLORS: Record<string, string> = {
-  food: "#FF9F0A",
-  shelter: "#BF5AF2",
-  clothing: "#FFD60A",
-  hygiene: "#32ADE6",
-  medical: "#FF3B30",
-  employment: "#5E5CE6",
-  transportation: "#0A84FF",
-  legal: "#8E8E93",
-  internet: "#34C759",
-  donation: "#FF2D55",
-};
+export { CATEGORY_COLORS, categoryColor };
 
 export const CATEGORY_GLYPHS: Record<string, string> = {
   food: '<path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z" />',
@@ -27,21 +17,22 @@ export const CATEGORY_GLYPHS: Record<string, string> = {
   donation: '<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />'
 };
 
-export function categoryColor(category: string) {
-  return CATEGORY_COLORS[category] ?? "#8E8E93";
-}
-
 export function categoryIcon(category: ResourceCategory | string, selected = false) {
   const color = categoryColor(category);
   const glyph = CATEGORY_GLYPHS[category] || '<circle cx="12" cy="12" r="6" fill="white"/>';
-  const width = selected ? 38 : 32;
-  const height = selected ? 48 : 40;
-  
-  const svg = `<svg width="${width}" height="${height}" viewBox="0 0 64 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.3));">
+  // Bigger, easy-to-tap pins. Selected pins pop larger with a ring.
+  const width = selected ? 52 : 44;
+  const height = selected ? 66 : 56;
+  const ring = selected
+    ? '<circle cx="32" cy="32" r="30" fill="none" stroke="#ffffff" stroke-width="4"/>'
+    : "";
+
+  const svg = `<svg width="${width}" height="${height}" viewBox="0 0 64 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 5px 7px rgba(0,0,0,0.35));">
     <path d="M32 0C14.3269 0 0 14.3269 0 32C0 48 32 70 32 70C32 70 64 48 64 32C64 14.3269 49.6731 0 32 0Z" fill="${color}"/>
+    ${ring}
     <circle cx="32" cy="76" r="4" fill="${color}" style="mix-blend-mode: multiply; opacity: 0.8"/>
-    <circle cx="32" cy="32" r="16" fill="white"/>
-    <g transform="translate(20, 20)" fill="${color}">
+    <circle cx="32" cy="32" r="17" fill="white"/>
+    <g transform="translate(19, 19) scale(1.08)" fill="${color}">
       ${glyph}
     </g>
   </svg>`;
@@ -51,7 +42,7 @@ export function categoryIcon(category: ResourceCategory | string, selected = fal
     html: svg,
     iconSize: [width, height],
     iconAnchor: [width / 2, height],
-    popupAnchor: [0, -height],
+    popupAnchor: [0, -height + 4],
   });
 }
 
