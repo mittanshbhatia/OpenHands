@@ -89,10 +89,10 @@ function FollowLivePosition({ pos }: { pos: { lat: number; lng: number } | null 
   useEffect(() => {
     if (!pos) return;
     const prev = lastPan.current;
-    // Skip micro-jitter pans so the map feels smooth while walking.
-    if (prev && haversineMeters(prev.lat, prev.lng, pos.lat, pos.lng) < 10) return;
+    // Pan as soon as you've moved a few meters so the map tracks you live.
+    if (prev && haversineMeters(prev.lat, prev.lng, pos.lat, pos.lng) < 3) return;
     lastPan.current = pos;
-    map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.35 });
+    map.panTo([pos.lat, pos.lng], { animate: true, duration: 0.2 });
   }, [map, pos?.lat, pos?.lng, pos]);
   return null;
 }
@@ -146,7 +146,12 @@ export function ResourceMapInner({
     : { lat: 0, lng: 0, label: "Start" });
 
   // --- Live navigation state ---
-  const [livePos, setLivePos] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [livePos, setLivePos] = useState<{
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    speed?: number;
+  } | null>(null);
   const [stepProgress, setStepProgress] = useState(0);
   const [refetchTick, setRefetchTick] = useState(0);
   const [bothRoutes, setBothRoutes] = useState<{ foot: RouteResult | null; driving: RouteResult | null }>({
@@ -166,13 +171,15 @@ export function ResourceMapInner({
   livePosRef.current = livePos;
   const profileRef = useRef(profile);
   profileRef.current = profile;
+  const routeRef = useRef(route);
+  routeRef.current = route;
 
   useEffect(() => {
     if (navMode && focusId) setSelectedId(focusId);
     if (!navMode && !focusId) setSelectedId(null);
   }, [focusId, navMode]);
 
-  // Continuous high-accuracy GPS while navigating or a destination is selected.
+  // Continuous high-accuracy GPS — every fix instantly trims path + ETA (no network wait).
   useEffect(() => {
     if ((!selected && !navMode) || typeof navigator === "undefined" || !navigator.geolocation) return;
 
@@ -182,12 +189,13 @@ export function ResourceMapInner({
         lat: p.coords.latitude,
         lng: p.coords.longitude,
         accuracy: p.coords.accuracy,
+        speed: typeof p.coords.speed === "number" && p.coords.speed >= 0 ? p.coords.speed : undefined,
       };
       // Ignore very poor fixes once we already have a decent one.
       if (
         typeof next.accuracy === "number" &&
-        next.accuracy > 85 &&
-        bestAccuracy < 50 &&
+        next.accuracy > 100 &&
+        bestAccuracy < 45 &&
         livePosRef.current
       ) {
         return;
@@ -195,63 +203,83 @@ export function ResourceMapInner({
       if (typeof next.accuracy === "number") {
         bestAccuracy = Math.min(bestAccuracy, next.accuracy);
       }
+
       const prev = livePosRef.current;
-      // Ignore sub-meter GPS noise so ETA/path updates stay smooth.
-      if (prev && haversineMeters(prev.lat, prev.lng, next.lat, next.lng) < 2.5) {
+      // Accept tiny moves so distance/ETA tick down continuously while walking.
+      if (prev && haversineMeters(prev.lat, prev.lng, next.lat, next.lng) < 0.6) {
         if (typeof next.accuracy === "number" && next.accuracy < (prev.accuracy ?? Infinity)) {
+          livePosRef.current = next;
           setLivePos(next);
         }
         return;
       }
+
+      livePosRef.current = next;
       setLivePos(next);
+
+      // Instant local update from the last real route — do not wait for a refetch.
+      const activeRoute = routeRef.current;
+      if (activeRoute?.coordinates?.length) {
+        const progress = liveRouteProgress(activeRoute, next);
+        // If device reports speed, refine ETA with measured pace.
+        let seconds = progress.remainingSeconds;
+        if (typeof next.speed === "number" && next.speed > 0.4) {
+          const fromDevice = progress.remainingMeters / next.speed;
+          seconds = Math.max(0, Math.round(fromDevice * 0.65 + progress.remainingSeconds * 0.35));
+        }
+        setLiveRemaining({
+          coords: progress.remainingCoords,
+          meters: progress.remainingMeters,
+          seconds,
+        });
+        setStepProgress((prevStep) => advanceStepIndex(activeRoute.steps, prevStep, next, 28));
+
+        const lastStart = lastRouteStartRef.current;
+        const movedFromStart =
+          lastStart != null ? haversineMeters(next.lat, next.lng, lastStart.lat, lastStart.lng) : 0;
+        const now = Date.now();
+        const walking = profileRef.current === "foot";
+        // Re-fetch a fresh Google/OSRM path often enough to stay accurate, without flooding the API.
+        const coolDownMs = walking ? 2500 : 4000;
+        const moveThreshold = walking ? 12 : 28;
+        const offRouteThreshold = walking ? 18 : 35;
+        if (
+          now - lastRefetchAtRef.current > coolDownMs &&
+          (movedFromStart > moveThreshold || progress.offRouteMeters > offRouteThreshold)
+        ) {
+          lastRefetchAtRef.current = now;
+          setRefetchTick((t) => t + 1);
+        }
+      }
     };
 
-    // Seed immediately, then keep watching as you move.
     navigator.geolocation.getCurrentPosition(applyFix, () => {}, {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 10000,
+      timeout: 8000,
     });
     const id = navigator.geolocation.watchPosition(applyFix, () => {}, {
       enableHighAccuracy: true,
       maximumAge: 0,
-      timeout: 15000,
+      timeout: 10000,
     });
     return () => navigator.geolocation.clearWatch(id);
   }, [selected, navMode]);
 
-  // Trim path + update minutes as you move; re-request a real route when off-path or far from last origin.
+  // Keep step/progress in sync if the route object itself changes (new server path).
   useEffect(() => {
     if (!livePos || !route?.coordinates?.length) {
-      setLiveRemaining(null);
+      if (!route) setLiveRemaining(null);
       return;
     }
-
     const progress = liveRouteProgress(route, livePos);
     setLiveRemaining({
       coords: progress.remainingCoords,
       meters: progress.remainingMeters,
       seconds: progress.remainingSeconds,
     });
-
-    setStepProgress((prev) => advanceStepIndex(route.steps, prev, livePos, 35));
-
-    const lastStart = lastRouteStartRef.current;
-    const movedFromStart =
-      lastStart != null ? haversineMeters(livePos.lat, livePos.lng, lastStart.lat, lastStart.lng) : 0;
-    const offRoute = progress.offRouteMeters;
-    const now = Date.now();
-    const walking = profileRef.current === "foot";
-    const coolDownMs = walking ? 5500 : 8000;
-    const moveThreshold = walking ? 35 : 70;
-    const offRouteThreshold = walking ? 30 : 55;
-    const coolDownOk = now - lastRefetchAtRef.current > coolDownMs;
-    // Re-route from live GPS when you've traveled or drifted off the corridor.
-    if (coolDownOk && (movedFromStart > moveThreshold || offRoute > offRouteThreshold)) {
-      lastRefetchAtRef.current = now;
-      setRefetchTick((t) => t + 1);
-    }
-  }, [livePos, route]);
+    setStepProgress((prev) => advanceStepIndex(route.steps, prev, livePos, 28));
+  }, [route]);
 
   const browseOnly = Boolean(onNavigate) && !navMode;
   /** Always use the live GPS navigation card when routing — never a second map UI. */
@@ -267,7 +295,6 @@ export function ResourceMapInner({
         setLiveRemaining(null);
         return;
       }
-      setLoadingRoute(true);
       const from = livePosRef.current ?? { lat: start.lat, lng: start.lng };
       const destChanged = routeTargetRef.current !== selected.id;
       if (destChanged) {
@@ -279,10 +306,11 @@ export function ResourceMapInner({
       const isLiveUpdate = !destChanged && lastRouteStartRef.current != null;
       const activeProfile = profileRef.current;
 
+      // Only show the loading spinner for the first route — live refreshes stay silent/instant.
+      if (!isLiveUpdate) setLoadingRoute(true);
+
       try {
         if (isLiveUpdate) {
-          // Fast re-route of the active mode only — updates ETA + path from where you are now.
-          setRouteNote("Updating route from your live location…");
           const params = new URLSearchParams({
             fromLat: String(from.lat),
             fromLng: String(from.lng),
@@ -294,8 +322,7 @@ export function ResourceMapInner({
           const data = (await res.json()) as { route?: RouteResult; error?: string };
           if (cancelled) return;
           if (!res.ok || !data.route) {
-            setRouteNote(data.error || "Could not refresh route.");
-            setLoadingRoute(false);
+            // Keep showing the locally trimmed path; silent failure on background refresh.
             return;
           }
           lastRouteStartRef.current = from;
@@ -366,8 +393,8 @@ export function ResourceMapInner({
           }
         }
       } catch {
-        if (!cancelled) {
-          if (!isLiveUpdate) setRoute(null);
+        if (!cancelled && !isLiveUpdate) {
+          setRoute(null);
           setRouteNote("Network error calculating route.");
         }
       } finally {
