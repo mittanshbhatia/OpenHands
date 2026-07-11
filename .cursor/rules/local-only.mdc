@@ -1,0 +1,15 @@
+---
+description: Local-only development until user explicitly allows publish
+alwaysApply: true
+---
+
+# Local-only until told otherwise
+
+For OpenHands work:
+
+- **Do** run and test locally (local website / local servers / local files)
+- **Do not** `git push`, create/update GitHub remotes, or deploy to Vercel
+- **Do not** change Vercel env, production settings, or other remote infra
+- Only publish (GitHub / Vercel / similar) when the user **explicitly** says to
+
+Still never touch unlimitedvoices, chatbot, or any non-OpenHands project.

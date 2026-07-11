@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="OpenHands">
+  <rect width="128" height="128" rx="28" fill="#0F4C5C"/>
+  <path fill="#F7F3EA" d="M40 78c8-18 20-28 24-28s16 10 24 28c-8 6-16 10-24 10s-16-4-24-10z"/>
+  <circle cx="52" cy="48" r="8" fill="#E07A5F"/>
+  <circle cx="76" cy="48" r="8" fill="#E07A5F"/>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "name": "OpenHands",
+  "short_name": "OpenHands",
+  "description": "Find support. Offer help. Strengthen your community.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F3EA",
+  "theme_color": "#0F4C5C",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
